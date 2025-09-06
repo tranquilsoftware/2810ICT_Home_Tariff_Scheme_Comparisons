@@ -1,14 +1,38 @@
 import os
 import csv
+import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime # Used for electrical usage record, specifically the timestamp attribute.
 from const import SPREADSHEET_FILE, SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH
 from enum import Enum
 
+from dataclasses import dataclass
+
 class TariffModel(Enum):
     FLAT_RATE = 1,
     TIME_OF_USE = 2,
     TIERED = 3,
+
+@dataclass
+class TierThreshold:
+    threshold_level: int
+    low_kwh: int
+    high_kwh: int
+    tarrif_rate: float
+
+@dataclass
+class TierResult:
+    tier_cost: float
+    tier_consumption: float
+
+@dataclass
+class TieredTariffResult:
+    total_cost: float
+    total_consumption: float
+    tier1: TierResult
+    tier2: TierResult
+    tier3: TierResult
+
 
 ### DATA STRUCTURES
 class ElectricalUsageRecord:
@@ -184,24 +208,65 @@ def calculateTariff(tariff_data: List[ElectricalUsageRecord], tariff_model: Tari
     """
     Calculate the cost of electricity based on the tariff model.
     """
-    pass
+    match tariff_model:
+        case TariffModel.FLAT_RATE:
+            # _flatRateTariff()
+            pass
+        case TariffModel.TIME_OF_USE:
+            # _timeOfUseTariff()
+            pass
+        case TariffModel.TIERED:
+            # _tieredTariff()
+            pass
+        case _:
+            raise ValueError(f"Unknown tarrif model {tariff_model}")
 
-def _flatRateTariff(tariff_data: List[ElectricalUsageRecord], tariff_rate: float = 0.25, montly_fee: float = 10.0) -> float:
+def _total_consumption(tariff_data: List[ElectricalUsageRecord]) -> float:
+    """
+    Calculate the sum of kWh consumed for all tarrif_data
+    """
+    return sum(record.kwh for record in tariff_data)
+
+def _flatRateTariff(tariff_data: List[ElectricalUsageRecord], tariff_rate: float = 0.25, monthly_fee: float = 10.0) -> float:
     """
     Calculate a flat rate tariff.
 
     EG:
         Total bill = (300 x 0.25) + 10 = $85
     """
-    total_consumption = 0.0;
-    for record in tariff_data:
-        total_consumption += record.kwh
-    return (total_consumption * tariff_rate) + montly_fee
+    total_consumption = _total_consumption(tariff_data)
+    return (total_consumption * tariff_rate) + monthly_fee
 
 
-def _TimeOfUseTariff(tariff_data: List[ElectricalUsageRecord], ):
+def _timeOfUseTariff(tariff_data: List[ElectricalUsageRecord], ):
     pass
 
 
-def _TieredTariff(tariff_data: List[ElectricalUsageRecord], ):
-    pass
+def _tieredTariff(tariff_data: List[ElectricalUsageRecord], tier1: TierThreshold, tier2: TierThreshold, tier3: TierThreshold, monthly_fee: float = 10.0) -> TieredTariffResult:
+    total_consumption = _total_consumption(tariff_data)
+
+    tier1_consumption = min(total_consumption, tier1.high_kwh)
+    tier2_consumption = min(max(0, total_consumption - tier1.high_kwh), tier2.high_kwh - tier1.high_kwh)
+    tier3_consumption = max(0, total_consumption - tier2.high_kwh)
+
+    tier1_cost = tier1_consumption * tier1.tarrif_rate
+    tier2_cost = tier2_consumption * tier2.tarrif_rate
+    tier3_cost = tier3_consumption * tier3.tarrif_rate
+    total_cost = tier1_cost + tier2_cost + tier3_cost + monthly_fee
+
+    print(f"Tier 1: {tier1_consumption} kWh x ${tier1.tarrif_rate} = ${tier1_cost:.2f}")
+    print(f"Tier 2: {tier2_consumption} kWh x ${tier2.tarrif_rate} = ${tier2_cost:.2f}")
+    print(f"Tier 3: {tier3_consumption} kWh x ${tier3.tarrif_rate} = ${tier3_cost:.2f}")
+    print(f"Total cost for {total_consumption} kWh: ${total_cost:.2f}")
+
+    result = TieredTariffResult(
+        total_cost=total_cost,
+        total_consumption=total_consumption,
+        tier1=TierResult(tier_cost=tier1_cost, tier_consumption=tier1_consumption),
+        tier2=TierResult(tier_cost=tier2_cost, tier_consumption=tier2_consumption),
+        tier3=TierResult(tier_cost=tier3_cost, tier_consumption=tier3_consumption),
+    )
+
+    print(result)
+
+    return result
