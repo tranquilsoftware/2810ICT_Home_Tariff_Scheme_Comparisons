@@ -3,6 +3,12 @@ import csv
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime # Used for electrical usage record, specifically the timestamp attribute.
 from const import SPREADSHEET_FILE, SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH
+from enum import Enum
+
+class TariffModel(Enum):
+    FLAT_RATE = 1,
+    TIME_OF_USE = 2,
+    TIERED = 3,
 
 ### DATA STRUCTURES
 class ElectricalUsageRecord:
@@ -172,3 +178,30 @@ def parseSpreadsheetData(spreadsheet_file: str) -> List[ElectricalUsageRecord]:
     
     print(f"Successfully parsed {len(electrical_usage_records)} electrical usage records from {spreadsheet_file}")
     return electrical_usage_records
+
+
+def calculateTariff(tariff_data: List[ElectricalUsageRecord], tariff_model: TariffModel):
+    """
+    Calculate the cost of electricity based on the tariff model.
+    """
+    pass
+
+def _flatRateTariff(tariff_data: List[ElectricalUsageRecord], tariff_rate: float = 0.25, montly_fee: float = 10.0) -> float:
+    """
+    Calculate a flat rate tariff.
+
+    EG:
+        Total bill = (300 x 0.25) + 10 = $85
+    """
+    total_consumption = 0.0;
+    for record in tariff_data:
+        total_consumption += record.kwh
+    return (total_consumption * tariff_rate) + montly_fee
+
+
+def _TimeOfUseTariff(tariff_data: List[ElectricalUsageRecord], ):
+    pass
+
+
+def _TieredTariff(tariff_data: List[ElectricalUsageRecord], ):
+    pass
