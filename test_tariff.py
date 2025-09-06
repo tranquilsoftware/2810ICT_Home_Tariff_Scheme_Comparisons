@@ -38,9 +38,10 @@ logger.setLevel(logging.DEBUG)
 
 tariff_data = [
     # ElectricalUsageRecord(timestamp="2025-01-01 02:00:00", kwh=300.0),
-    ElectricalUsageRecord(timestamp="2025-01-01 00:00:00", kwh=0.25),
-    ElectricalUsageRecord(timestamp="2025-01-01 01:00:00", kwh=0.42),
-    ElectricalUsageRecord(timestamp="2025-01-01 02:00:00", kwh=0.48),
+    ElectricalUsageRecord(timestamp="2025-01-02 05:00:00", kwh=0.42), # Off Peak
+    ElectricalUsageRecord(timestamp="2025-01-01 23:00:00", kwh=0.25), # Off Peak
+    ElectricalUsageRecord(timestamp="2025-01-01 08:00:00", kwh=0.48), # Shoulder
+    ElectricalUsageRecord(timestamp="2025-01-01 19:00:00", kwh=0.48), # Peak
 ]
 
 tariff_data_large = [
@@ -101,14 +102,14 @@ def test_tieredTariff():
 
 
 def test_timeOfUseTariff():
+    shoulder = TimeOfUseCategory(
+        category=TimeOfUseModel.SHOULDER, period_start="07:00:00", period_end="17:59:59", tarrif_rate=0.30,
+    )
     peak = TimeOfUseCategory(
-        category=TimeOfUseModel.PEAK, period_start="18:00:00", period_end="21:59:59"
+        category=TimeOfUseModel.PEAK, period_start="18:00:00", period_end="21:59:59", tarrif_rate=0.40,
     )
     off_peak = TimeOfUseCategory(
-        category=TimeOfUseModel.OFF_PEAK, period_start="22:00:00", period_end="06:59:59"
-    )
-    shoulder = TimeOfUseCategory(
-        category=TimeOfUseModel.SHOULDER, period_start="07:00:00", period_end="17:59:59"
+        category=TimeOfUseModel.OFF_PEAK, period_start="22:00:00", period_end="06:59:59", tarrif_rate=0.12,
     )
 
     actual = _timeOfUseTariff(tariff_data, peak, off_peak, shoulder)

@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import (
     datetime,
     time,
+    timedelta,
 )  # Used for electrical usage record, specifically the timestamp attribute.
 from const import SPREADSHEET_FILE, SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH
 from enum import Enum
@@ -55,6 +56,7 @@ class TimeOfUseCategory:
     category: TimeOfUseModel
     period_start: str
     period_end: str
+    tarrif_rate: float
 
 
 @dataclass
@@ -310,14 +312,62 @@ def _timeOfUseTariff(
     Calculate the tariff cost based on time of use data.
     """
     for record in tariff_data:
-        # Convert the record to a datetime object.
-        dt = datetime.strptime(record.timestamp, "%Y-%m-%d %H:%M:%S")
-        dt_time = dt.time()
-        peak_start_time = _get_time_from_str(peak.period_start)
-        logger.debug(f"datetime: {dt}")
-        logger.debug(f"time: {dt_time}")
-        logger.debug(f"peak_start_time: {peak_start_time}")
+        # Convert the timestamp to a datetime object.
+        record_dt = datetime.strptime(record.timestamp, "%Y-%m-%d %H:%M:%S")
+        record_dt_midnight = record_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        record_dt_date = record_dt.date()
+        record_dt_next_date_midnight = record_dt_midnight + timedelta(days=1)
+        # record_dt_time = record_dt.time()
+        # record_dt_next_date = record_dt_date + timedelta(days=1)
+        # record_dt_previous_date = record_dt_date - timedelta(days=1)
 
+        peak_start_time = _get_time_from_str(peak.period_start)
+        peak_end_time =  _get_time_from_str(peak.period_end)
+        peak_start_dt = datetime.combine(record_dt_date, peak_start_time)
+        peak_end_dt = datetime.combine(record_dt_date, peak_end_time)
+
+        off_peak_start_time = _get_time_from_str(off_peak.period_start)
+        off_peak_end_time =  _get_time_from_str(off_peak.period_end)
+        off_peak_start_dt = datetime.combine(record_dt_date, off_peak_start_time)
+        off_peak_end_dt = datetime.combine(record_dt_date, off_peak_end_time)
+
+        # shoulder_start_time = _get_time_from_str(shoulder.period_start)
+        # shoulder_end_time =  _get_time_from_str(shoulder.period_end)
+        # shoulder_start_dt = datetime.combine(record_dt_date, shoulder_start_time)
+        # shoulder_end_dt = datetime.combine(record_dt_date, shoulder_end_time)
+
+        # logger.debug(f"datetime: {record_dt}")
+        # logger.debug(f"datetime_midnight: {record_dt_midnight}")
+        # logger.debug(f"time: {record_dt_time}")
+        # logger.debug(f"date: {record_dt_date}")
+        # logger.debug(f"next_date: {record_dt_next_date}")
+        # logger.debug(f"next_date_midnight: {record_dt_next_date_midnight}")
+        # logger.debug(f"previous_date: {record_dt_previous_date}")
+
+        # logger.debug(f"peak_start_time: {peak_start_time}")
+        # logger.debug(f"peak_end_time: {peak_end_time}")
+        # logger.debug(f"peak_start_date: {peak_start_dt}")
+        # logger.debug(f"peak_end_date: {peak_end_dt}")
+
+        # logger.debug(f"off_peak_start_time: {off_peak_start_time}")
+        # logger.debug(f"off_peak_end_time: {off_peak_end_time}")
+        # logger.debug(f"off_peak_start_date: {off_peak_start_dt}")
+        # logger.debug(f"off_peak_end_date: {off_peak_end_dt}")
+
+        # logger.debug(f"shoulder_start_time: {shoulder_start_time}")
+        # logger.debug(f"shoulder_end_time: {shoulder_end_time}")
+        # logger.debug(f"shoulder_start_date: {shoulder_start_dt}")
+        # logger.debug(f"shoulder_end_date: {shoulder_end_dt}")
+
+        # Peak
+        if peak_start_dt < record_dt < peak_end_dt:
+            logger.debug(f"-> PEAK record {record_dt}")
+        # Off Peak is split over two timeframes in a day.
+        elif (off_peak_start_dt < record_dt < record_dt_next_date_midnight) or (record_dt_midnight < record_dt < off_peak_end_dt):
+            logger.debug(f"-> OFF PEAK record {record_dt}")
+        # Shoulder all other times
+        else:
+            logger.debug(f"-> SHOULDER record {record_dt}")
 
 def _tieredTariff(
     tariff_data: List[ElectricalUsageRecord],
