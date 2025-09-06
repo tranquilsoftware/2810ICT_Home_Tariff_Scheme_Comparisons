@@ -11,6 +11,9 @@ from enum import Enum
 
 from dataclasses import dataclass
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class TariffModel(Enum):
     FLAT_RATE = (1,)
@@ -277,7 +280,7 @@ def _get_time_from_str(timestamp: str) -> time:
         h, m, s = timestamp.split(":")
         return time(int(h), int(m), int(s))
     except (ValueError, AttributeError):
-        logging.error(logging.error(f"Invalid timestamp '{timestamp}' unable to extract time"))
+        logger.error(f"Invalid timestamp '{timestamp}' unable to extract time")
         raise
 
 
@@ -311,9 +314,9 @@ def _timeOfUseTariff(
         dt = datetime.strptime(record.timestamp, "%Y-%m-%d %H:%M:%S")
         dt_time = dt.time()
         peak_start_time = _get_time_from_str(peak.period_start)
-        print(f"datetime: {dt}")
-        print(f"time: {dt_time}")
-        print(f"peak_start_time: {peak_start_time}")
+        logger.debug(f"datetime: {dt}")
+        logger.debug(f"time: {dt_time}")
+        logger.debug(f"peak_start_time: {peak_start_time}")
 
 
 def _tieredTariff(
@@ -343,10 +346,10 @@ def _tieredTariff(
     tier3_cost = tier3_consumption * tier3.tarrif_rate
     total_cost = tier1_cost + tier2_cost + tier3_cost + monthly_fee
 
-    # print(f"Tier 1: {tier1_consumption} kWh x ${tier1.tarrif_rate} = ${tier1_cost:.2f}")
-    # print(f"Tier 2: {tier2_consumption} kWh x ${tier2.tarrif_rate} = ${tier2_cost:.2f}")
-    # print(f"Tier 3: {tier3_consumption} kWh x ${tier3.tarrif_rate} = ${tier3_cost:.2f}")
-    # print(f"Total cost for {total_consumption} kWh: ${total_cost:.2f}")
+    logger.debug(f"Tier 1: {tier1_consumption} kWh x ${tier1.tarrif_rate} = ${tier1_cost:.2f}")
+    logger.debug(f"Tier 2: {tier2_consumption} kWh x ${tier2.tarrif_rate} = ${tier2_cost:.2f}")
+    logger.debug(f"Tier 3: {tier3_consumption} kWh x ${tier3.tarrif_rate} = ${tier3_cost:.2f}")
+    logger.debug(f"Total cost for {total_consumption} kWh: ${total_cost:.2f}")
 
     result = TieredTariffResult(
         total_cost=total_cost,
@@ -356,6 +359,6 @@ def _tieredTariff(
         tier3=TierResult(tier_cost=tier3_cost, tier_consumption=tier3_consumption),
     )
 
-    print(result)
+    logger.debug(result)
 
     return result

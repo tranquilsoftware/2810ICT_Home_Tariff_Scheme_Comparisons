@@ -1,6 +1,7 @@
 import pytest
 import sys
 from datetime import time
+import logging
 
 from const import MAX_KWH
 from tariff import (
@@ -13,7 +14,10 @@ from tariff import (
     TimeOfUseCategory,
     TimeOfUseModel,
     _get_time_from_str,
+    logger,
 )
+
+logger.setLevel(logging.DEBUG)
 
 # Unit Testing:
 #  Tests individual units (functions/methods) in isolation.
@@ -53,6 +57,26 @@ def test_total_consumption(tariff_data, expected):
 
 
 @pytest.mark.parametrize(
+    "timestamp, expected, expected_error",
+    [
+        ("18:00:00", time(18, 00, 00), None),
+        ("18:00:1.1", None, ValueError),
+        ("18:00", None, ValueError),
+        ("", None, ValueError),
+        (1.1, None, AttributeError),
+        (None, None, AttributeError),
+    ],
+)
+def test_get_time_from_str(timestamp, expected, expected_error):
+    if expected_error:
+        with pytest.raises(expected_error):
+            _get_time_from_str(timestamp)
+    else:
+        actual = _get_time_from_str(timestamp)
+        assert actual == expected
+
+
+@pytest.mark.parametrize(
     "tariff_data,tarrif_rate,monthly_fee, expected",
     [
         # (tariff_data, 0.25, 10.0, 85.0),
@@ -73,6 +97,7 @@ def test_tieredTariff():
         threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tarrif_rate=0.40
     )
     result = _tieredTariff(tariff_data_large, tier1, tier2, tier3)
+    assert False
 
 
 def test_timeOfUseTariff():
@@ -88,22 +113,3 @@ def test_timeOfUseTariff():
 
     actual = _timeOfUseTariff(tariff_data, peak, off_peak, shoulder)
     assert False
-
-@pytest.mark.parametrize(
-    "timestamp, expected, expected_error",
-    [
-        ("18:00:00", time(18, 00, 00), None),
-        ("18:00:1.1", None, ValueError),
-        ("18:00", None, ValueError),
-        ("", None, ValueError),
-        (1.1, None, AttributeError),
-        (None, None, AttributeError),
-    ],
-)
-def test_get_time_from_str(timestamp, expected, expected_error):
-    if expected_error:
-        with pytest.raises(expected_error):
-            _get_time_from_str(timestamp)
-    else:
-        actual = _get_time_from_str(timestamp)
-        assert actual == expected
