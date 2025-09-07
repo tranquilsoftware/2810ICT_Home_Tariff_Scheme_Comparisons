@@ -3,7 +3,7 @@ import sys
 from datetime import time
 import logging
 
-from const import MAX_KWH
+from const import MAX_KWH, MONTHLY_FEE
 from tariff import (
     ElectricalUsageRecord,
     _flatRateTariff,
@@ -13,6 +13,9 @@ from tariff import (
     TierThreshold,
     TimeOfUseCategory,
     TimeOfUseModel,
+    FlatRateTariff,
+    TimeOfUseTariffCategories,
+    TierTariffThresholds,
     _get_time_from_str,
     logger,
 )
@@ -36,12 +39,14 @@ logger.setLevel(logging.DEBUG)
 # 2025-01-01 01:00:00,0.42
 # 2025-01-01 02:00:00,0.48
 
+flat_rate_tariff = FlatRateTariff(rate=10.0)
+
 tariff_data = [
     # ElectricalUsageRecord(timestamp="2025-01-01 02:00:00", kwh=300.0),
-    ElectricalUsageRecord(timestamp="2025-01-02 05:00:00", kwh=0.42), # Off Peak
-    ElectricalUsageRecord(timestamp="2025-01-01 23:00:00", kwh=0.25), # Off Peak
-    ElectricalUsageRecord(timestamp="2025-01-01 08:00:00", kwh=0.48), # Shoulder
-    ElectricalUsageRecord(timestamp="2025-01-01 19:00:00", kwh=0.48), # Peak
+    ElectricalUsageRecord(timestamp="2025-01-02 05:00:00", kwh=0.42),  # Off Peak
+    ElectricalUsageRecord(timestamp="2025-01-01 23:00:00", kwh=0.25),  # Off Peak
+    ElectricalUsageRecord(timestamp="2025-01-01 08:00:00", kwh=0.48),  # Shoulder
+    ElectricalUsageRecord(timestamp="2025-01-01 19:00:00", kwh=0.48),  # Peak
 ]
 
 tariff_data_large = [
@@ -51,7 +56,7 @@ tariff_data_large = [
 ]
 
 
-@pytest.mark.parametrize("tariff_data, expected", [(tariff_data, 1.15)])
+@pytest.mark.parametrize("tariff_data, expected", [(tariff_data, sum(x.kwh for x in tariff_data))])
 def test_total_consumption(tariff_data, expected):
     actual = _total_consumption(tariff_data)
     assert actual == expected
@@ -78,39 +83,68 @@ def test_get_time_from_str(timestamp, expected, expected_error):
 
 
 @pytest.mark.parametrize(
-    "tariff_data,tarrif_rate,monthly_fee, expected",
+    "tariff_data,tariff_rate,monthly_fee, expected",
     [
         # (tariff_data, 0.25, 10.0, 85.0),
-        (tariff_data, 0.25, 10.0, 10.2875),
+        (tariff_data, flat_rate_tariff, MONTHLY_FEE, 26.299999999999997),
     ],
 )
-def test_flatRateTarrif(tariff_data, tarrif_rate, monthly_fee, expected):
-    actual = _flatRateTariff(tariff_data, tarrif_rate, monthly_fee)
+def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
+    actual = _flatRateTariff(
+        tariff_data=tariff_data, tariff_rate=tariff_rate, monthly_fee=monthly_fee
+    )
     assert actual == expected
 
 
 def test_tieredTariff():
-    tier1 = TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tarrif_rate=0.20)
+    tier1 = TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.20)
     tier2 = TierThreshold(
-        threshold_level=2, low_kwh=101, high_kwh=300, tarrif_rate=0.30
+        threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.30
     )
     tier3 = TierThreshold(
-        threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tarrif_rate=0.40
+        threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.40
     )
-    result = _tieredTariff(tariff_data_large, tier1, tier2, tier3)
+    tariff_tiers = TierTariffThresholds(
+        tier1=tier1,
+        tier2=tier2,
+        tier3=tier3,
+    )
+    result = _tieredTariff(
+        tariff_data=tariff_data_large,
+        tariff_tiers=tariff_tiers,
+        monthly_fee=MONTHLY_FEE,
+    )
     assert False
 
 
 def test_timeOfUseTariff():
     shoulder = TimeOfUseCategory(
-        category=TimeOfUseModel.SHOULDER, period_start="07:00:00", period_end="17:59:59", tarrif_rate=0.30,
+        category=TimeOfUseModel.SHOULDER,
+        period_start="07:00:00",
+        period_end="17:59:59",
+        tariff_rate=0.30,
     )
     peak = TimeOfUseCategory(
-        category=TimeOfUseModel.PEAK, period_start="18:00:00", period_end="21:59:59", tarrif_rate=0.40,
+        category=TimeOfUseModel.PEAK,
+        period_start="18:00:00",
+        period_end="21:59:59",
+        tariff_rate=0.40,
     )
     off_peak = TimeOfUseCategory(
-        category=TimeOfUseModel.OFF_PEAK, period_start="22:00:00", period_end="06:59:59", tarrif_rate=0.12,
+        category=TimeOfUseModel.OFF_PEAK,
+        period_start="22:00:00",
+        period_end="06:59:59",
+        tariff_rate=0.12,
+    )
+    tariff_categories = TimeOfUseTariffCategories(
+        peak=peak,
+        off_peak=off_peak,
+        shoulder=shoulder,
     )
 
-    actual = _timeOfUseTariff(tariff_data, peak, off_peak, shoulder)
+    actual = _timeOfUseTariff(
+        tariff_data=tariff_data,
+        tariff_categories=tariff_categories,
+        monthly_fee=MONTHLY_FEE,
+    )
     assert False

@@ -7,7 +7,12 @@ from datetime import (
     time,
     timedelta,
 )  # Used for electrical usage record, specifically the timestamp attribute.
-from const import SPREADSHEET_FILE, SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH
+from const import (
+    SPREADSHEET_FILE,
+    SPREADSHEET_COL_TIMESTAMP,
+    SPREADSHEET_COL_KWH,
+    MONTHLY_FEE,
+)
 from enum import Enum
 
 from dataclasses import dataclass
@@ -17,15 +22,20 @@ logger.setLevel(logging.INFO)
 
 
 class TariffModel(Enum):
-    FLAT_RATE = (1,)
-    TIME_OF_USE = (2,)
-    TIERED = (3,)
+    FLAT_RATE = 1
+    TIME_OF_USE = 2
+    TIERED = 3
 
 
 class TimeOfUseModel(Enum):
-    PEAK = (0,)
-    SHOULDER = (1,)
-    OFF_PEAK = (2,)
+    PEAK = 1
+    SHOULDER = 2
+    OFF_PEAK = 3
+
+
+@dataclass
+class FlatRateTariff:
+    rate: float
 
 
 @dataclass
@@ -33,7 +43,14 @@ class TierThreshold:
     threshold_level: int
     low_kwh: int
     high_kwh: int
-    tarrif_rate: float
+    tariff_rate: float
+
+
+@dataclass
+class TierTariffThresholds:
+    tier1: TierThreshold
+    tier2: TierThreshold
+    tier3: TierThreshold
 
 
 @dataclass
@@ -56,12 +73,29 @@ class TimeOfUseCategory:
     category: TimeOfUseModel
     period_start: str
     period_end: str
-    tarrif_rate: float
+    tariff_rate: float
+
+
+@dataclass
+class TimeOfUseTariffCategories:
+    peak: TimeOfUseCategory
+    off_peak: TimeOfUseCategory
+    shoulder: TimeOfUseCategory
+
+
+@dataclass
+class TimeOfUseResult:
+    tou_cost: float
+    tou_consumption: float
 
 
 @dataclass
 class TimeOfUseTariffResult:
-    pass
+    total_cost: float
+    total_consumption: float
+    peak: TimeOfUseResult
+    off_peak: TimeOfUseResult
+    shoulder: TimeOfUseResult
 
 
 ### DATA STRUCTURES
@@ -119,7 +153,7 @@ def readCSVFile(file_path: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
             encoding="utf-8",  # should be utf-8 encoding
         ) as file:
             """
-            Gracefully detect the CSV format and it's dialect 
+            Gracefully detect the CSV format and it's dialect
             (container class, how its formatted. e.g. doublequotes, delimiters, whitespace, etc)
             https://docs.python.org/3/library/csv.html
             """
@@ -251,28 +285,48 @@ def parseSpreadsheetData(spreadsheet_file: str) -> List[ElectricalUsageRecord]:
 
 
 def calculateTariff(
-    tariff_data: List[ElectricalUsageRecord], tariff_model: TariffModel
+    tariff_data: List[ElectricalUsageRecord],
+    tariff_model: TariffModel,
+    flat_rate_tariff: Optional[FlatRateTariff] = None,
+    time_of_use_tariffs: Optional[TimeOfUseTariffCategories] = None,
+    tiered_tariffs: Optional[TierTariffThresholds] = None,
+    monthly_fee: float = MONTHLY_FEE,
 ):
     """
     Calculate the cost of electricity based on the tariff model.
     """
     match tariff_model:
         case TariffModel.FLAT_RATE:
-            # _flatRateTariff()
-            pass
+            if flat_rate_tariff is None:
+                raise AttributeError(f"No flat_rate_tariff data supplied")
+            _flatRateTariff(
+                tariff_data=tariff_data,
+                tariff_rate=flat_rate_tariff,
+                monthly_fee=monthly_fee,
+            )
         case TariffModel.TIME_OF_USE:
-            # _timeOfUseTariff()
-            pass
+            if time_of_use_tariffs is None:
+                raise AttributeError(f"No time_of_use_tariffs data supplied")
+            _timeOfUseTariff(
+                tariff_data=tariff_data,
+                tariff_categories=time_of_use_tariffs,
+                monthly_fee=monthly_fee,
+            )
         case TariffModel.TIERED:
-            # _tieredTariff()
-            pass
+            if tiered_tariffs is None:
+                raise AttributeError(f"No tiered_tariffs data supplied")
+            _tieredTariff(
+                tariff_data=tariff_data,
+                tariff_tiers=tiered_tariffs,
+                monthly_fee=monthly_fee,
+            )
         case _:
-            raise ValueError(f"Unknown tarrif model {tariff_model}")
+            raise ValueError(f"Unknown tariff model {tariff_model}")
 
 
 def _total_consumption(tariff_data: List[ElectricalUsageRecord]) -> float:
     """
-    Calculate the sum of kWh consumed for all tarrif_data
+    Calculate the sum of kWh consumed for all tariff_data
     """
     return sum(record.kwh for record in tariff_data)
 
@@ -288,8 +342,8 @@ def _get_time_from_str(timestamp: str) -> time:
 
 def _flatRateTariff(
     tariff_data: List[ElectricalUsageRecord],
-    tariff_rate: float = 0.25,
-    monthly_fee: float = 10.0,
+    tariff_rate: FlatRateTariff,
+    monthly_fee: float = MONTHLY_FEE,
 ) -> float:
     """
     Calculate a flat rate tariff.
@@ -298,108 +352,108 @@ def _flatRateTariff(
         Total bill = (300 x 0.25) + 10 = $85
     """
     total_consumption = _total_consumption(tariff_data)
-    return (total_consumption * tariff_rate) + monthly_fee
+    return (total_consumption * tariff_rate.rate) + monthly_fee
 
 
 def _timeOfUseTariff(
     tariff_data: List[ElectricalUsageRecord],
-    peak: TimeOfUseCategory,
-    off_peak: TimeOfUseCategory,
-    shoulder: TimeOfUseCategory,
-    monthy_fee: float = 10.0,
-) -> Any:
+    tariff_categories: TimeOfUseTariffCategories,
+    monthly_fee: float = MONTHLY_FEE,
+) -> TimeOfUseTariffResult:
     """
     Calculate the tariff cost based on time of use data.
     """
+    total_consumption = _total_consumption(tariff_data)
+
+    peak_consumption = 0.0
+    off_peak_consumption = 0.0
+    shoulder_consumption = 0.0
+
     for record in tariff_data:
         # Convert the timestamp to a datetime object.
         record_dt = datetime.strptime(record.timestamp, "%Y-%m-%d %H:%M:%S")
-        record_dt_midnight = record_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        record_dt_midnight = record_dt.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         record_dt_date = record_dt.date()
         record_dt_next_date_midnight = record_dt_midnight + timedelta(days=1)
-        # record_dt_time = record_dt.time()
-        # record_dt_next_date = record_dt_date + timedelta(days=1)
-        # record_dt_previous_date = record_dt_date - timedelta(days=1)
 
-        peak_start_time = _get_time_from_str(peak.period_start)
-        peak_end_time =  _get_time_from_str(peak.period_end)
+        peak_start_time = _get_time_from_str(tariff_categories.peak.period_start)
+        peak_end_time = _get_time_from_str(tariff_categories.peak.period_end)
         peak_start_dt = datetime.combine(record_dt_date, peak_start_time)
         peak_end_dt = datetime.combine(record_dt_date, peak_end_time)
 
-        off_peak_start_time = _get_time_from_str(off_peak.period_start)
-        off_peak_end_time =  _get_time_from_str(off_peak.period_end)
+        off_peak_start_time = _get_time_from_str(
+            tariff_categories.off_peak.period_start
+        )
+        off_peak_end_time = _get_time_from_str(tariff_categories.off_peak.period_end)
         off_peak_start_dt = datetime.combine(record_dt_date, off_peak_start_time)
         off_peak_end_dt = datetime.combine(record_dt_date, off_peak_end_time)
 
-        # shoulder_start_time = _get_time_from_str(shoulder.period_start)
-        # shoulder_end_time =  _get_time_from_str(shoulder.period_end)
-        # shoulder_start_dt = datetime.combine(record_dt_date, shoulder_start_time)
-        # shoulder_end_dt = datetime.combine(record_dt_date, shoulder_end_time)
-
-        # logger.debug(f"datetime: {record_dt}")
-        # logger.debug(f"datetime_midnight: {record_dt_midnight}")
-        # logger.debug(f"time: {record_dt_time}")
-        # logger.debug(f"date: {record_dt_date}")
-        # logger.debug(f"next_date: {record_dt_next_date}")
-        # logger.debug(f"next_date_midnight: {record_dt_next_date_midnight}")
-        # logger.debug(f"previous_date: {record_dt_previous_date}")
-
-        # logger.debug(f"peak_start_time: {peak_start_time}")
-        # logger.debug(f"peak_end_time: {peak_end_time}")
-        # logger.debug(f"peak_start_date: {peak_start_dt}")
-        # logger.debug(f"peak_end_date: {peak_end_dt}")
-
-        # logger.debug(f"off_peak_start_time: {off_peak_start_time}")
-        # logger.debug(f"off_peak_end_time: {off_peak_end_time}")
-        # logger.debug(f"off_peak_start_date: {off_peak_start_dt}")
-        # logger.debug(f"off_peak_end_date: {off_peak_end_dt}")
-
-        # logger.debug(f"shoulder_start_time: {shoulder_start_time}")
-        # logger.debug(f"shoulder_end_time: {shoulder_end_time}")
-        # logger.debug(f"shoulder_start_date: {shoulder_start_dt}")
-        # logger.debug(f"shoulder_end_date: {shoulder_end_dt}")
-
         # Peak
         if peak_start_dt < record_dt < peak_end_dt:
-            logger.debug(f"-> PEAK record {record_dt}")
+            peak_consumption += record.kwh
         # Off Peak is split over two timeframes in a day.
-        elif (off_peak_start_dt < record_dt < record_dt_next_date_midnight) or (record_dt_midnight < record_dt < off_peak_end_dt):
-            logger.debug(f"-> OFF PEAK record {record_dt}")
+        elif (off_peak_start_dt < record_dt < record_dt_next_date_midnight) or (
+            record_dt_midnight < record_dt < off_peak_end_dt
+        ):
+            off_peak_consumption += record.kwh
         # Shoulder all other times
         else:
-            logger.debug(f"-> SHOULDER record {record_dt}")
+            shoulder_consumption += record.kwh
+
+    peak_result = TimeOfUseResult(
+        tou_consumption=peak_consumption,
+        tou_cost=peak_consumption * tariff_categories.peak.tariff_rate,
+    )
+    off_peak_result = TimeOfUseResult(
+        tou_consumption=off_peak_consumption,
+        tou_cost=off_peak_consumption * tariff_categories.off_peak.tariff_rate,
+    )
+    shoulder_result = TimeOfUseResult(
+        tou_consumption=shoulder_consumption,
+        tou_cost=shoulder_consumption * tariff_categories.shoulder.tariff_rate,
+    )
+
+    result = TimeOfUseTariffResult(
+        total_cost=peak_result.tou_cost
+        + off_peak_result.tou_cost
+        + shoulder_result.tou_cost
+        + monthly_fee,
+        total_consumption=total_consumption,
+        peak=peak_result,
+        off_peak=off_peak_result,
+        shoulder=shoulder_result,
+    )
+
+    return result
+
 
 def _tieredTariff(
     tariff_data: List[ElectricalUsageRecord],
-    tier1: TierThreshold,
-    tier2: TierThreshold,
-    tier3: TierThreshold,
-    monthly_fee: float = 10.0,
+    tariff_tiers: TierTariffThresholds,
+    monthly_fee: float = MONTHLY_FEE,
 ) -> TieredTariffResult:
     """
     Calculate a tiered tariff where prices based on kWh consumed.
 
     EG:
         Tier 1: first 100 kWh $0.20, Tier 2: 101-300 kWh $0.30, Tier 3: above 300 kWh $0.40
-        Total bill = sum of tarrif tier costs + monthy_fee
+        Total bill = sum of tariff tier costs + monthly_fee
     """
     total_consumption = _total_consumption(tariff_data)
 
-    tier1_consumption = min(total_consumption, tier1.high_kwh)
+    tier1_consumption = min(total_consumption, tariff_tiers.tier1.high_kwh)
     tier2_consumption = min(
-        max(0, total_consumption - tier1.high_kwh), tier2.high_kwh - tier1.high_kwh
+        max(0, total_consumption - tariff_tiers.tier1.high_kwh),
+        tariff_tiers.tier2.high_kwh - tariff_tiers.tier1.high_kwh,
     )
-    tier3_consumption = max(0, total_consumption - tier2.high_kwh)
+    tier3_consumption = max(0, total_consumption - tariff_tiers.tier2.high_kwh)
 
-    tier1_cost = tier1_consumption * tier1.tarrif_rate
-    tier2_cost = tier2_consumption * tier2.tarrif_rate
-    tier3_cost = tier3_consumption * tier3.tarrif_rate
+    tier1_cost = tier1_consumption * tariff_tiers.tier1.tariff_rate
+    tier2_cost = tier2_consumption * tariff_tiers.tier2.tariff_rate
+    tier3_cost = tier3_consumption * tariff_tiers.tier3.tariff_rate
     total_cost = tier1_cost + tier2_cost + tier3_cost + monthly_fee
-
-    logger.debug(f"Tier 1: {tier1_consumption} kWh x ${tier1.tarrif_rate} = ${tier1_cost:.2f}")
-    logger.debug(f"Tier 2: {tier2_consumption} kWh x ${tier2.tarrif_rate} = ${tier2_cost:.2f}")
-    logger.debug(f"Tier 3: {tier3_consumption} kWh x ${tier3.tarrif_rate} = ${tier3_cost:.2f}")
-    logger.debug(f"Total cost for {total_consumption} kWh: ${total_cost:.2f}")
 
     result = TieredTariffResult(
         total_cost=total_cost,
@@ -408,7 +462,5 @@ def _tieredTariff(
         tier2=TierResult(tier_cost=tier2_cost, tier_consumption=tier2_consumption),
         tier3=TierResult(tier_cost=tier3_cost, tier_consumption=tier3_consumption),
     )
-
-    logger.debug(result)
 
     return result
