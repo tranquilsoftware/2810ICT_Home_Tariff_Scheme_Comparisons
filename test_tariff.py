@@ -16,7 +16,10 @@ from tariff import (
     FlatRateTariff,
     TimeOfUseTariffCategories,
     TierTariffThresholds,
+    TariffModel,
+    FlatRateTariffResult,
     _get_time_from_str,
+    calculateTariff,
     logger,
 )
 
@@ -56,7 +59,9 @@ tariff_data_large = [
 ]
 
 
-@pytest.mark.parametrize("tariff_data, expected", [(tariff_data, sum(x.kwh for x in tariff_data))])
+@pytest.mark.parametrize(
+    "tariff_data, expected", [(tariff_data, sum(x.kwh for x in tariff_data))]
+)
 def test_total_consumption(tariff_data, expected):
     actual = _total_consumption(tariff_data)
     assert actual == expected
@@ -85,8 +90,7 @@ def test_get_time_from_str(timestamp, expected, expected_error):
 @pytest.mark.parametrize(
     "tariff_data,tariff_rate,monthly_fee, expected",
     [
-        # (tariff_data, 0.25, 10.0, 85.0),
-        (tariff_data, flat_rate_tariff, MONTHLY_FEE, 26.299999999999997),
+        (tariff_data, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=26.299999999999997, total_consumption=1.63)),
     ],
 )
 def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
@@ -148,3 +152,26 @@ def test_timeOfUseTariff():
         monthly_fee=MONTHLY_FEE,
     )
     assert False
+
+
+@pytest.mark.parametrize(
+    "tariff_data,tariff_model,tarrif_type_data,monthly_fee,expected,expected_error",
+    [
+        (tariff_data, None, None, MONTHLY_FEE, None, ValueError),
+        (tariff_data, TariffModel.FLAT_RATE, None, MONTHLY_FEE, None, None),
+    ],
+)
+def test_calculateTariff(
+    tariff_data, tariff_model, tarrif_type_data, monthly_fee, expected, expected_error
+):
+    if expected_error:
+        with pytest.raises(expected_error):
+            calculateTariff(
+                tariff_data=tariff_data,
+                tariff_model=tariff_model,
+                # tarrif_type_data=tarrif_type_data,
+                monthly_fee=monthly_fee,
+            )
+    else:
+        actual = None
+        assert actual == expected

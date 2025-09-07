@@ -39,6 +39,12 @@ class FlatRateTariff:
 
 
 @dataclass
+class FlatRateTariffResult:
+    total_cost: float
+    total_consumption: float
+
+
+@dataclass
 class TierThreshold:
     threshold_level: int
     low_kwh: int
@@ -291,15 +297,17 @@ def calculateTariff(
     time_of_use_tariffs: Optional[TimeOfUseTariffCategories] = None,
     tiered_tariffs: Optional[TierTariffThresholds] = None,
     monthly_fee: float = MONTHLY_FEE,
-):
+) -> FlatRateTariffResult | TieredTariffResult | TimeOfUseTariffResult:
     """
     Calculate the cost of electricity based on the tariff model.
     """
+    result = None
+
     match tariff_model:
         case TariffModel.FLAT_RATE:
             if flat_rate_tariff is None:
                 raise AttributeError(f"No flat_rate_tariff data supplied")
-            _flatRateTariff(
+            result = _flatRateTariff(
                 tariff_data=tariff_data,
                 tariff_rate=flat_rate_tariff,
                 monthly_fee=monthly_fee,
@@ -307,7 +315,7 @@ def calculateTariff(
         case TariffModel.TIME_OF_USE:
             if time_of_use_tariffs is None:
                 raise AttributeError(f"No time_of_use_tariffs data supplied")
-            _timeOfUseTariff(
+            result = _timeOfUseTariff(
                 tariff_data=tariff_data,
                 tariff_categories=time_of_use_tariffs,
                 monthly_fee=monthly_fee,
@@ -315,13 +323,15 @@ def calculateTariff(
         case TariffModel.TIERED:
             if tiered_tariffs is None:
                 raise AttributeError(f"No tiered_tariffs data supplied")
-            _tieredTariff(
+            result = _tieredTariff(
                 tariff_data=tariff_data,
                 tariff_tiers=tiered_tariffs,
                 monthly_fee=monthly_fee,
             )
         case _:
             raise ValueError(f"Unknown tariff model {tariff_model}")
+
+    return result
 
 
 def _total_consumption(tariff_data: List[ElectricalUsageRecord]) -> float:
@@ -331,12 +341,15 @@ def _total_consumption(tariff_data: List[ElectricalUsageRecord]) -> float:
     return sum(record.kwh for record in tariff_data)
 
 
-def _get_time_from_str(timestamp: str) -> time:
+def _get_time_from_str(time_str: str) -> time:
+    """
+    Create a datetime.time object from a string. String must be in the %H:%M:%S format.
+    """
     try:
-        h, m, s = timestamp.split(":")
+        h, m, s = time_str.split(":")
         return time(int(h), int(m), int(s))
     except (ValueError, AttributeError):
-        logger.error(f"Invalid timestamp '{timestamp}' unable to extract time")
+        logger.error(f"Invalid time string format '{time_str}' unable to extract time")
         raise
 
 
@@ -344,7 +357,7 @@ def _flatRateTariff(
     tariff_data: List[ElectricalUsageRecord],
     tariff_rate: FlatRateTariff,
     monthly_fee: float = MONTHLY_FEE,
-) -> float:
+) -> FlatRateTariffResult:
     """
     Calculate a flat rate tariff.
 
@@ -352,7 +365,11 @@ def _flatRateTariff(
         Total bill = (300 x 0.25) + 10 = $85
     """
     total_consumption = _total_consumption(tariff_data)
-    return (total_consumption * tariff_rate.rate) + monthly_fee
+    result = FlatRateTariffResult(
+        total_cost=(total_consumption * tariff_rate.rate) + monthly_fee,
+        total_consumption=total_consumption,
+    )
+    return result
 
 
 def _timeOfUseTariff(
