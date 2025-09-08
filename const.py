@@ -5,3 +5,6 @@ SPREADSHEET_FILE = "sample_usage_data_month.csv"
 # Column Names
 SPREADSHEET_COL_TIMESTAMP = "timestamp"
 SPREADSHEET_COL_KWH = "kWh"
+
+MAX_KWH = 10000  # 10 MWh
+MONTHLY_FEE = 10.0
