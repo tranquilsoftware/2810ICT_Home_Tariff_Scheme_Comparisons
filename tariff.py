@@ -329,7 +329,7 @@ def calculateTariff(
                 monthly_fee=monthly_fee,
             )
         case _:
-            raise ValueError(f"Unknown tariff model {tariff_model}")
+            raise AttributeError(f"Unknown tariff model {tariff_model}")
 
     return result
 
