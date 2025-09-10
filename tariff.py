@@ -148,6 +148,7 @@ def readCSVFile(file_path: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
     if not os.path.exists(file_path):
         return [], f"Error: File '{file_path}' not found"
 
+
     # NOTE: File exists, continue..
 
     # Try case as an error could definitely occur during a file read operation
@@ -263,30 +264,26 @@ def parseSpreadsheetData(spreadsheet_file: str) -> List[ElectricalUsageRecord]:
 
     # Process each row with 0-based indexing
     for row_index, row in enumerate(csv_data):
-        try:
-            # Get values using column indices from const
-            timestamp_val = row[SPREADSHEET_COL_TIMESTAMP].strip()
-            kwh_val = row[SPREADSHEET_COL_KWH].strip()
+        # Get values using column indices from const
+        timestamp_val = row[SPREADSHEET_COL_TIMESTAMP].strip()
+        kwh_val = row[SPREADSHEET_COL_KWH].strip()
+        
+        # Define TariffCells to relevant data type
+        timestamp_cell = TariffDataCell(timestamp_val, 'datetime')
+        kwh_cell = TariffDataCell(kwh_val, 'numeric')
+        
+        # Validate cells
+        if validateDataFormat(timestamp_cell) and validateDataFormat(kwh_cell):
+            usage_record = ElectricalUsageRecord(
+                timestamp=timestamp_val,
+                kwh=float(kwh_val)
+            )
+            electrical_usage_records.append(usage_record)
+        else:
+            print(f"Skipping invalid row at index {row_index}")
 
-            # Define TariffCells to relevant data type
-            timestamp_cell = TariffDataCell(timestamp_val, "datetime")
-            kwh_cell = TariffDataCell(kwh_val, "numeric")
-
-            # Validate cells
-            if validateDataFormat(timestamp_cell) and validateDataFormat(kwh_cell):
-                usage_record = ElectricalUsageRecord(
-                    timestamp=timestamp_val, kwh=float(kwh_val)
-                )
-                electrical_usage_records.append(usage_record)
-            else:
-                print(f"Skipping invalid row at index {row_index}")
-
-        except (ValueError, KeyError) as e:
-            print(f"Error processing row at index {row_index}: {str(e)}")
-
-    print(
-        f"Successfully parsed {len(electrical_usage_records)} electrical usage records from {spreadsheet_file}"
-    )
+    
+    print(f"Successfully parsed {len(electrical_usage_records)} electrical usage records from {spreadsheet_file}")
     return electrical_usage_records
 
 
