@@ -21,9 +21,11 @@ from tariff import (
     _get_time_from_str,
     calculateTariff,
     logger,
+    TimeOfUseTariffResult,
+    TimeOfUseResult,
+    TieredTariffResult,
+    TierResult,
 )
-
-logger.setLevel(logging.DEBUG)
 
 import os
 import csv
@@ -38,6 +40,7 @@ from tariff import (
 )
 from const import SPREADSHEET_FILE, SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH
 
+logger.setLevel(logging.DEBUG)
 
 """
 All tests below cover:
@@ -117,7 +120,7 @@ def test_readCSVFile(
     test_csv,
     tmp_path):
     """Test readCSVFile with various file scenarios.
-    
+
     Args:
         setup_case: The test case scenario to set up
         expected_len: Expected length of returned data
@@ -193,7 +196,7 @@ def test_parseSpreadsheetData(
     expected_msg_snippet,
     comment):
     """Test parseSpreadsheetData with various input scenarios.
-    
+
     Args:
         tmp_path: Fixture providing temporary directory path
         capsys: Fixture for capturing stdout/stderr
@@ -292,14 +295,21 @@ def test_tieredTariff():
         tier2=tier2,
         tier3=tier3,
     )
-    result = _tieredTariff(
+    actual = _tieredTariff(
         tariff_data=tariff_data_large,
         tariff_tiers=tariff_tiers,
         monthly_fee=MONTHLY_FEE,
     )
-    assert False
+    expected = TieredTariffResult(
+        total_cost=270.0,
+        total_consumption=750.0,
+        tier1=TierResult(tier_cost=20.0, tier_consumption=100),
+        tier2=TierResult(tier_cost=60.0, tier_consumption=200),
+        tier3=TierResult(tier_cost=180.0, tier_consumption=450.0)
+    )
+    assert actual == expected
 
-
+@pytest.mark.parametrize("", [()])
 def test_timeOfUseTariff():
     shoulder = TimeOfUseCategory(
         category=TimeOfUseModel.SHOULDER,
@@ -330,8 +340,14 @@ def test_timeOfUseTariff():
         tariff_categories=tariff_categories,
         monthly_fee=MONTHLY_FEE,
     )
-    assert False
-
+    expected = TimeOfUseTariffResult(
+        total_cost=10.4164,
+        total_consumption=1.63,
+        peak=TimeOfUseResult(tou_cost=0.192, tou_consumption=0.48),
+        off_peak=TimeOfUseResult(tou_cost=0.08039999999999999, tou_consumption=0.6699999999999999),
+        shoulder=TimeOfUseResult(tou_cost=0.144, tou_consumption=0.48)
+    )
+    assert actual == expected
 
 @pytest.mark.parametrize(
     "tariff_data,tariff_model,tarrif_type_data,monthly_fee,expected,expected_error",
@@ -348,7 +364,7 @@ def test_calculateTariff(
             calculateTariff(
                 tariff_data=tariff_data,
                 tariff_model=tariff_model,
-                # tarrif_type_data=tarrif_type_data,
+                tarrif_type_data=tarrif_type_data,
                 monthly_fee=monthly_fee,
             )
     else:
