@@ -273,6 +273,9 @@ def test_get_time_from_str(timestamp, expected, expected_error):
     "tariff_data,tariff_rate,monthly_fee, expected",
     [
         (tariff_data, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=26.299999999999997, total_consumption=1.63)),
+        (tariff_data_large, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=7510.0, total_consumption=750.0)),
+        ([], flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=10.0, total_consumption=0.0)),
+        ([ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=50.0)], FlatRateTariff(rate=0.5), 5.0, FlatRateTariffResult(total_cost=30.0, total_consumption=50.0))
     ],
 )
 def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
@@ -309,64 +312,242 @@ def test_tieredTariff():
     )
     assert actual == expected
 
-@pytest.mark.parametrize("", [()])
-def test_timeOfUseTariff():
-    shoulder = TimeOfUseCategory(
-        category=TimeOfUseModel.SHOULDER,
-        period_start="07:00:00",
-        period_end="17:59:59",
-        tariff_rate=0.30,
-    )
-    peak = TimeOfUseCategory(
-        category=TimeOfUseModel.PEAK,
-        period_start="18:00:00",
-        period_end="21:59:59",
-        tariff_rate=0.40,
-    )
-    off_peak = TimeOfUseCategory(
-        category=TimeOfUseModel.OFF_PEAK,
-        period_start="22:00:00",
-        period_end="06:59:59",
-        tariff_rate=0.12,
-    )
-    tariff_categories = TimeOfUseTariffCategories(
-        peak=peak,
-        off_peak=off_peak,
-        shoulder=shoulder,
-    )
-
+@pytest.mark.parametrize(
+    "test_data, tariff_categories, monthly_fee, expected_result",
+    [
+        # Unit test - basic time of use calculation
+        (
+            [
+                ElectricalUsageRecord(timestamp="2025-01-01 19:00:00", kwh=1.0),  # Peak
+                ElectricalUsageRecord(timestamp="2025-01-01 08:00:00", kwh=2.0),  # Shoulder
+                ElectricalUsageRecord(timestamp="2025-01-01 23:00:00", kwh=3.0),  # Off Peak
+            ],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "18:00:00", "21:59:59", 0.40),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "22:00:00", "06:59:59", 0.12),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "17:59:59", 0.30),
+            ),
+            10.0,
+            TimeOfUseTariffResult(
+                total_cost=11.36,  # (1*0.40) + (2*0.30) + (3*0.12) + 10.0
+                total_consumption=6.0,
+                peak=TimeOfUseResult(tou_cost=0.40, tou_consumption=1.0),
+                off_peak=TimeOfUseResult(tou_cost=0.36, tou_consumption=3.0),
+                shoulder=TimeOfUseResult(tou_cost=0.60, tou_consumption=2.0)
+            ),
+        ),
+        # Test coverage - all peak hours
+        (
+            [
+                ElectricalUsageRecord(timestamp="2025-01-01 18:30:00", kwh=5.0),  # Peak
+                ElectricalUsageRecord(timestamp="2025-01-01 20:00:00", kwh=3.0),  # Peak
+            ],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "18:00:00", "21:59:59", 0.50),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "22:00:00", "06:59:59", 0.15),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "17:59:59", 0.25),
+            ),
+            5.0,
+            TimeOfUseTariffResult(
+                total_cost=9.0,  # (8*0.50) + 5.0
+                total_consumption=8.0,
+                peak=TimeOfUseResult(tou_cost=4.0, tou_consumption=8.0),
+                off_peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
+            ),
+        ),
+        # Test coverage - all shoulder hours
+        (
+            [
+                ElectricalUsageRecord(timestamp="2025-01-01 10:00:00", kwh=2.5),  # Shoulder
+                ElectricalUsageRecord(timestamp="2025-01-01 15:30:00", kwh=1.5),  # Shoulder
+            ],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "18:00:00", "21:59:59", 0.45),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "22:00:00", "06:59:59", 0.18),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "17:59:59", 0.32),
+            ),
+            8.0,
+            TimeOfUseTariffResult(
+                total_cost=9.28,  # (4*0.32) + 8.0
+                total_consumption=4.0,
+                peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                off_peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                shoulder=TimeOfUseResult(tou_cost=1.28, tou_consumption=4.0)
+            ),
+        ),
+        # Branch testing - off peak spanning midnight
+        (
+            [
+                ElectricalUsageRecord(timestamp="2025-01-01 23:30:00", kwh=1.0),  # Off Peak (evening)
+                ElectricalUsageRecord(timestamp="2025-01-01 02:00:00", kwh=2.0),  # Off Peak (early morning)
+                ElectricalUsageRecord(timestamp="2025-01-01 06:30:00", kwh=1.5),  # Off Peak (morning)
+            ],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "17:00:00", "20:59:59", 0.38),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "21:00:00", "06:59:59", 0.14),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "16:59:59", 0.28),
+            ),
+            12.0,
+            TimeOfUseTariffResult(
+                total_cost=12.63,  # (4.5*0.14) + 12.0
+                total_consumption=4.5,
+                peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                off_peak=TimeOfUseResult(tou_cost=0.6300000000000001, tou_consumption=4.5),
+                shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
+            ),
+        ),
+        # Branch testing - empty tariff data
+        (
+            [],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "18:00:00", "21:59:59", 0.40),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "22:00:00", "06:59:59", 0.12),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "17:59:59", 0.30),
+            ),
+            15.0,
+            TimeOfUseTariffResult(
+                total_cost=15.0,  # Only monthly fee
+                total_consumption=0.0,
+                peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                off_peak=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0),
+                shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
+            ),
+        ),
+        # Branch testing - edge case at period boundaries
+        (
+            [
+                ElectricalUsageRecord(timestamp="2025-01-01 17:59:59", kwh=1.0),  # Shoulder (just before peak)
+                ElectricalUsageRecord(timestamp="2025-01-01 18:00:00", kwh=2.0),  # Peak (exactly at start)
+                ElectricalUsageRecord(timestamp="2025-01-01 21:59:59", kwh=1.5),  # Peak (just before end)
+                ElectricalUsageRecord(timestamp="2025-01-01 22:00:00", kwh=0.5),  # Off Peak (exactly at start)
+            ],
+            TimeOfUseTariffCategories(
+                peak=TimeOfUseCategory(TimeOfUseModel.PEAK, "18:00:00", "21:59:59", 0.35),
+                off_peak=TimeOfUseCategory(TimeOfUseModel.OFF_PEAK, "22:00:00", "06:59:59", 0.10),
+                shoulder=TimeOfUseCategory(TimeOfUseModel.SHOULDER, "07:00:00", "17:59:59", 0.25),
+            ),
+            0.0,
+            TimeOfUseTariffResult(
+                total_cost=1.525,  # (1*0.25) + (3.5*0.35) + (0.5*0.10) + 0.0
+                total_consumption=5.0,
+                peak=TimeOfUseResult(tou_cost=1.225, tou_consumption=3.5),
+                off_peak=TimeOfUseResult(tou_cost=0.05, tou_consumption=0.5),
+                shoulder=TimeOfUseResult(tou_cost=0.25, tou_consumption=1.0)
+            ),
+        ),
+    ]
+)
+def test_timeOfUseTariff(test_data, tariff_categories, monthly_fee, expected_result):
     actual = _timeOfUseTariff(
-        tariff_data=tariff_data,
+        tariff_data=test_data,
         tariff_categories=tariff_categories,
-        monthly_fee=MONTHLY_FEE,
+        monthly_fee=monthly_fee,
     )
-    expected = TimeOfUseTariffResult(
-        total_cost=10.4164,
-        total_consumption=1.63,
-        peak=TimeOfUseResult(tou_cost=0.192, tou_consumption=0.48),
-        off_peak=TimeOfUseResult(tou_cost=0.08039999999999999, tou_consumption=0.6699999999999999),
-        shoulder=TimeOfUseResult(tou_cost=0.144, tou_consumption=0.48)
-    )
-    assert actual == expected
+    assert actual == expected_result
 
 @pytest.mark.parametrize(
-    "tariff_data,tariff_model,tarrif_type_data,monthly_fee,expected,expected_error",
+    "tariff_data,tariff_model,flat_rate_tariff,time_of_use_tariffs,tiered_tariffs,monthly_fee,expected_error",
     [
-        (tariff_data, None, None, MONTHLY_FEE, None, ValueError),
-        (tariff_data, TariffModel.FLAT_RATE, None, MONTHLY_FEE, None, None),
+        # Test case: Unknown tariff model (should raise ValueError)
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            "UNKNOWN_MODEL",  # Invalid tariff model
+            None, None, None, MONTHLY_FEE, ValueError
+        ),
+        # Test case: FLAT_RATE with None flat_rate_tariff (should raise AttributeError)
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.FLAT_RATE,
+            None,  # Missing flat_rate_tariff data
+            None, None, MONTHLY_FEE, AttributeError
+        ),
+        # Test case: TIME_OF_USE with None time_of_use_tariffs (should raise AttributeError)
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.TIME_OF_USE,
+            None,
+            None,  # Missing time_of_use_tariffs data
+            None, MONTHLY_FEE, AttributeError
+        ),
+        # Test case: TIERED with None tiered_tariffs (should raise AttributeError)
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.TIERED,
+            None, None,
+            None,  # Missing tiered_tariffs data
+            MONTHLY_FEE, AttributeError
+        ),
     ],
 )
-def test_calculateTariff(
-    tariff_data, tariff_model, tarrif_type_data, monthly_fee, expected, expected_error
+def test_calculateTariff_error_cases(
+    tariff_data, tariff_model, flat_rate_tariff, time_of_use_tariffs, tiered_tariffs, monthly_fee, expected_error
 ):
-    if expected_error:
-        with pytest.raises(expected_error):
-            calculateTariff(
-                tariff_data=tariff_data,
-                tariff_model=tariff_model,
-                tarrif_type_data=tarrif_type_data,
-                monthly_fee=monthly_fee,
-            )
-    else:
-        actual = None
-        assert actual == expected
+    with pytest.raises(expected_error):
+        calculateTariff(
+            tariff_data=tariff_data,
+            tariff_model=tariff_model,
+            flat_rate_tariff=flat_rate_tariff,
+            time_of_use_tariffs=time_of_use_tariffs,
+            tiered_tariffs=tiered_tariffs,
+            monthly_fee=monthly_fee,
+        )
+
+
+def test_calculateTariff_success_cases():
+    tariff_data = [ElectricalUsageRecord("2025-01-01 12:00:00", 100.0)]
+
+    # Test FLAT_RATE success case
+    flat_rate_tariff = FlatRateTariff(rate=0.25)
+    result = calculateTariff(
+        tariff_data=tariff_data,
+        tariff_model=TariffModel.FLAT_RATE,
+        flat_rate_tariff=flat_rate_tariff,
+        monthly_fee=MONTHLY_FEE,
+    )
+    assert isinstance(result, FlatRateTariffResult)
+    assert result.total_cost == (100.0 * 0.25) + MONTHLY_FEE
+    assert result.total_consumption == 100.0
+
+    # Test TIME_OF_USE success case
+    time_of_use_tariffs = TimeOfUseTariffCategories(
+        peak=TimeOfUseCategory(
+            category=TimeOfUseModel.PEAK,
+            period_start="16:00:00",
+            period_end="20:00:00",
+            tariff_rate=0.40
+        ),
+        off_peak=TimeOfUseCategory(
+            category=TimeOfUseModel.OFF_PEAK,
+            period_start="22:00:00",
+            period_end="06:00:00",
+            tariff_rate=0.12
+        ),
+        shoulder=TimeOfUseCategory(
+            category=TimeOfUseModel.SHOULDER,
+            period_start="06:00:00",
+            period_end="16:00:00",
+            tariff_rate=0.30
+        )
+    )
+    result = calculateTariff(
+        tariff_data=tariff_data,
+        tariff_model=TariffModel.TIME_OF_USE,
+        time_of_use_tariffs=time_of_use_tariffs,
+        monthly_fee=MONTHLY_FEE,
+    )
+    assert isinstance(result, TimeOfUseTariffResult)
+
+    # Test TIERED success case
+    tiered_tariffs = TierTariffThresholds(
+        tier1=TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.20),
+        tier2=TierThreshold(threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.30),
+        tier3=TierThreshold(threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.40)
+    )
+    result = calculateTariff(
+        tariff_data=tariff_data,
+        tariff_model=TariffModel.TIERED,
+        tiered_tariffs=tiered_tariffs,
+        monthly_fee=MONTHLY_FEE,
+    )
+    assert isinstance(result, TieredTariffResult)
