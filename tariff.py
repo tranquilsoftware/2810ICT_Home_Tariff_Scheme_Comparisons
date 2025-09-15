@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-:wq!
+
 
 class TariffModel(Enum):
     FLAT_RATE = 1
