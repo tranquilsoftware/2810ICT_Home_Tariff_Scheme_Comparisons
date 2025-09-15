@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
+:wq!
 
 class TariffModel(Enum):
     FLAT_RATE = 1
@@ -267,11 +267,11 @@ def parseSpreadsheetData(spreadsheet_file: str) -> List[ElectricalUsageRecord]:
         # Get values using column indices from const
         timestamp_val = row[SPREADSHEET_COL_TIMESTAMP].strip()
         kwh_val = row[SPREADSHEET_COL_KWH].strip()
-        
+
         # Define TariffCells to relevant data type
         timestamp_cell = TariffDataCell(timestamp_val, 'datetime')
         kwh_cell = TariffDataCell(kwh_val, 'numeric')
-        
+
         # Validate cells
         if validateDataFormat(timestamp_cell) and validateDataFormat(kwh_cell):
             usage_record = ElectricalUsageRecord(
@@ -282,7 +282,7 @@ def parseSpreadsheetData(spreadsheet_file: str) -> List[ElectricalUsageRecord]:
         else:
             print(f"Skipping invalid row at index {row_index}")
 
-    
+
     print(f"Successfully parsed {len(electrical_usage_records)} electrical usage records from {spreadsheet_file}")
     return electrical_usage_records
 
