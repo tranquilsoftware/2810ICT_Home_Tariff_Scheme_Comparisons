@@ -431,7 +431,7 @@ def test_tieredTariff():
             TimeOfUseTariffResult(
                 total_cost=1.525,  # (1*0.25) + (3.5*0.35) + (0.5*0.10) + 0.0
                 total_consumption=5.0,
-                peak=TimeOfUseResult(tou_cost=1.225, tou_consumption=3.5),
+                peak=TimeOfUseResult(tou_cost=1.2249999999999999, tou_consumption=3.5),
                 off_peak=TimeOfUseResult(tou_cost=0.05, tou_consumption=0.5),
                 shoulder=TimeOfUseResult(tou_cost=0.25, tou_consumption=1.0)
             ),

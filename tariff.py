@@ -405,11 +405,11 @@ def _timeOfUseTariff(
         off_peak_end_dt = datetime.combine(record_dt_date, off_peak_end_time)
 
         # Peak
-        if peak_start_dt < record_dt < peak_end_dt:
+        if peak_start_dt <= record_dt <= peak_end_dt:
             peak_consumption += record.kwh
         # Off Peak is split over two timeframes in a day.
-        elif (off_peak_start_dt < record_dt < record_dt_next_date_midnight) or (
-            record_dt_midnight < record_dt < off_peak_end_dt
+        elif (off_peak_start_dt <= record_dt <= record_dt_next_date_midnight) or (
+            record_dt_midnight <= record_dt <= off_peak_end_dt
         ):
             off_peak_consumption += record.kwh
         # Shoulder all other times
