@@ -362,8 +362,9 @@ def _flatRateTariff(
         Total bill = (300 x 0.25) + 10 = $85
     """
     total_consumption = _total_consumption(tariff_data)
+    usage_cost = round(total_consumption * tariff_rate.rate, 2)
     result = FlatRateTariffResult(
-        total_cost=(total_consumption * tariff_rate.rate) + monthly_fee,
+        total_cost=usage_cost + monthly_fee,
         total_consumption=total_consumption,
     )
     return result
@@ -418,15 +419,15 @@ def _timeOfUseTariff(
 
     peak_result = TimeOfUseResult(
         tou_consumption=peak_consumption,
-        tou_cost=peak_consumption * tariff_categories.peak.tariff_rate,
+        tou_cost=round(peak_consumption * tariff_categories.peak.tariff_rate, 2),
     )
     off_peak_result = TimeOfUseResult(
         tou_consumption=off_peak_consumption,
-        tou_cost=off_peak_consumption * tariff_categories.off_peak.tariff_rate,
+        tou_cost=round(off_peak_consumption * tariff_categories.off_peak.tariff_rate, 2),
     )
     shoulder_result = TimeOfUseResult(
         tou_consumption=shoulder_consumption,
-        tou_cost=shoulder_consumption * tariff_categories.shoulder.tariff_rate,
+        tou_cost=round(shoulder_consumption * tariff_categories.shoulder.tariff_rate, 2),
     )
 
     result = TimeOfUseTariffResult(
@@ -470,11 +471,11 @@ def _tieredTariff(
     total_cost = tier1_cost + tier2_cost + tier3_cost + monthly_fee
 
     result = TieredTariffResult(
-        total_cost=total_cost,
+        total_cost=round(total_cost, 2),
         total_consumption=total_consumption,
-        tier1=TierResult(tier_cost=tier1_cost, tier_consumption=tier1_consumption),
-        tier2=TierResult(tier_cost=tier2_cost, tier_consumption=tier2_consumption),
-        tier3=TierResult(tier_cost=tier3_cost, tier_consumption=tier3_consumption),
+        tier1=TierResult(tier_cost=round(tier1_cost, 2), tier_consumption=tier1_consumption),
+        tier2=TierResult(tier_cost=round(tier2_cost, 2), tier_consumption=tier2_consumption),
+        tier3=TierResult(tier_cost=round(tier3_cost, 2), tier_consumption=tier3_consumption),
     )
 
     return result
