@@ -525,7 +525,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
 @pytest.mark.parametrize(
     "test_data, tariff_categories, monthly_fee, expected_result",
     [
-        # Unit test - basic time of use calculation
+        # Unit test - basic time of use calculation  # A014
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 19:00:00", kwh=1.0),  # Peak
@@ -546,7 +546,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=0.60, tou_consumption=2.0)
             ),
         ),
-        # Test coverage - all peak hours
+        # Test coverage - all peak hours  # A015
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 18:30:00", kwh=5.0),  # Peak
@@ -566,7 +566,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
             ),
         ),
-        # Test coverage - all shoulder hours
+        # Test coverage - all shoulder hours  # A016
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 10:00:00", kwh=2.5),  # Shoulder
@@ -586,7 +586,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=1.28, tou_consumption=4.0)
             ),
         ),
-        # Branch testing - off peak spanning midnight
+        # Branch testing - off peak spanning midnight  # A017
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 23:30:00", kwh=1.0),  # Off Peak (evening)
@@ -607,7 +607,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
             ),
         ),
-        # Branch testing - empty tariff data
+        # Branch testing - empty tariff data  # A018
         (
             [],
             TimeOfUseTariffCategories(
@@ -624,7 +624,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
             ),
         ),
-        # Boundary testing - edge case at period boundaries
+        # Boundary testing - edge case at period boundaries  # B004
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 17:59:59", kwh=1.0),  # Shoulder (just before peak)
@@ -668,75 +668,9 @@ def test_timeOfUseTariff(test_data, tariff_categories, monthly_fee, expected_res
     assert actual == expected_result
 
 @pytest.mark.parametrize(
-    "tariff_data,tariff_model,flat_rate_tariff,time_of_use_tariffs,tiered_tariffs,monthly_fee,expected_error",
-    [
-        # Test case: Unknown tariff model (should raise ValueError)
-        (
-            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
-            "UNKNOWN_MODEL",  # Invalid tariff model
-            None, None, None, MONTHLY_FEE, ValueError
-        ),
-        # Test case: FLAT_RATE with None flat_rate_tariff (should raise AttributeError)
-        (
-            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
-            TariffModel.FLAT_RATE,
-            None,  # Missing flat_rate_tariff data
-            None, None, MONTHLY_FEE, AttributeError
-        ),
-        # Test case: TIME_OF_USE with None time_of_use_tariffs (should raise AttributeError)
-        (
-            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
-            TariffModel.TIME_OF_USE,
-            None,
-            None,  # Missing time_of_use_tariffs data
-            None, MONTHLY_FEE, AttributeError
-        ),
-        # Test case: TIERED with None tiered_tariffs (should raise AttributeError)
-        (
-            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
-            TariffModel.TIERED,
-            None, None,
-            None,  # Missing tiered_tariffs data
-            MONTHLY_FEE, AttributeError
-        ),
-    ],
-)
-def test_calculateTariff_error_cases(
-    tariff_data, tariff_model, flat_rate_tariff, time_of_use_tariffs, tiered_tariffs, monthly_fee, expected_error
-):
-    """
-    Test that calculateTariff function raises expected errors for invalid input cases.
-    This test function verifies that the calculateTariff function properly handles
-    error conditions by raising the appropriate exceptions when given invalid
-    parameters or parameter combinations.
-    Args:
-        tariff_data: The tariff data to be processed
-        tariff_model: The type of tariff model to apply
-        flat_rate_tariff: Flat rate tariff configuration
-        time_of_use_tariffs: Time-of-use tariff configuration
-        tiered_tariffs: Tiered tariff configuration
-        monthly_fee: Monthly fee amount
-        expected_error: The expected exception type that should be raised
-    Raises:
-        The exception specified in expected_error parameter
-    Note:
-        This test is typically used with pytest.mark.parametrize to test
-        multiple error scenarios with different input combinations.
-    """
-    with pytest.raises(expected_error):
-        calculateTariff(
-            tariff_data=tariff_data,
-            tariff_model=tariff_model,
-            flat_rate_tariff=flat_rate_tariff,
-            time_of_use_tariffs=time_of_use_tariffs,
-            tiered_tariffs=tiered_tariffs,
-            monthly_fee=monthly_fee,
-        )
-
-@pytest.mark.parametrize(
     "tariff_model, tariff_data, flat_rate_tariff, time_of_use_tariffs, tiered_tariffs, monthly_fee, expected_type, expected_cost, expected_consumption",
     [
-        # Unit test - FLAT_RATE success case
+        # Unit test - FLAT_RATE success case  # A019
         (
             TariffModel.FLAT_RATE,
             [ElectricalUsageRecord("2025-01-01 12:00:00", 100.0)],
@@ -748,7 +682,7 @@ def test_calculateTariff_error_cases(
             (100.0 * 0.25) + MONTHLY_FEE,  # 35.0
             100.0,
         ),
-        # Unit test - TIME_OF_USE success case
+        # Unit test - TIME_OF_USE success case  # A020
         (
             TariffModel.TIME_OF_USE,
             [ElectricalUsageRecord("2025-01-01 12:00:00", 100.0)],  # Shoulder period
@@ -779,7 +713,7 @@ def test_calculateTariff_error_cases(
             (100.0 * 0.30) + MONTHLY_FEE,  # 40.0
             100.0,
         ),
-        # Unit test - TIERED success case
+        # Unit test - TIERED success case  # A021
         (
             TariffModel.TIERED,
             [ElectricalUsageRecord("2025-01-01 12:00:00", 100.0)],
@@ -795,7 +729,7 @@ def test_calculateTariff_error_cases(
             (100.0 * 0.20) + MONTHLY_FEE,  # 30.0
             100.0,
         ),
-        # Test coverage - FLAT_RATE with zero consumption
+        # Test coverage - FLAT_RATE with zero consumption  # A022
         (
             TariffModel.FLAT_RATE,
             [],
@@ -807,7 +741,7 @@ def test_calculateTariff_error_cases(
             MONTHLY_FEE,  # Only monthly fee
             0.0,
         ),
-        # Test coverage - TIME_OF_USE with peak period consumption
+        # Test coverage - TIME_OF_USE with peak period consumption  # A023
         (
             TariffModel.TIME_OF_USE,
             [ElectricalUsageRecord("2025-01-01 18:00:00", 50.0)],  # Peak period
@@ -838,7 +772,7 @@ def test_calculateTariff_error_cases(
             (50.0 * 0.40) + MONTHLY_FEE,  # 30.0
             50.0,
         ),
-        # Branch testing - TIERED with multi-tier consumption
+        # Branch testing - TIERED with multi-tier consumption  # A024
         (
             TariffModel.TIERED,
             [ElectricalUsageRecord("2025-01-01 12:00:00", 250.0)],
@@ -894,42 +828,68 @@ def test_calculateTariff_success_cases(
     assert result.total_cost == expected_cost
     assert result.total_consumption == expected_consumption
 
-
 @pytest.mark.parametrize(
-    "tariff_model, flat_rate_tarrif, time_of_use_tariffs, tiered_tariffs, expected_error",
+    "tariff_data,tariff_model,flat_rate_tariff,time_of_use_tariffs,tiered_tariffs,monthly_fee,expected_error",
     [
-        # Branch testing - None tariff model
-        (None, None, None, None, ValueError),
-
-        # Branch testing - Invalid string tariff model
-        ("INVALID_MODEL", None, None, None,  ValueError),
-
-        # Branch testing - No flat rate tariff data
-        (TariffModel.FLAT_RATE, None, None, None, AttributeError),
-
-        # Branch testing - No tiered tariff data
-        (TariffModel.TIERED, None, None, None, AttributeError),
-
-        # Branch testing - No time of use tariff data
-        (TariffModel.TIME_OF_USE, None, None, None, AttributeError),
-    ]
+        # Test case: Unknown tariff model (should raise ValueError)  # C006
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            "UNKNOWN_MODEL",  # Invalid tariff model
+            None, None, None, MONTHLY_FEE, ValueError
+        ),
+        # Test case: FLAT_RATE with None flat_rate_tariff (should raise AttributeError)  # C007
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.FLAT_RATE,
+            None,  # Missing flat_rate_tariff data
+            None, None, MONTHLY_FEE, AttributeError
+        ),
+        # Test case: TIME_OF_USE with None time_of_use_tariffs (should raise AttributeError)  # C008
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.TIME_OF_USE,
+            None,
+            None,  # Missing time_of_use_tariffs data
+            None, MONTHLY_FEE, AttributeError
+        ),
+        # Test case: TIERED with None tiered_tariffs (should raise AttributeError)  # C009
+        (
+            [ElectricalUsageRecord("2025-01-01 12:00:00", 0.5)],
+            TariffModel.TIERED,
+            None, None,
+            None,  # Missing tiered_tariffs data
+            MONTHLY_FEE, AttributeError
+        ),
+    ],
 )
-def test_calculateTariff_error_cases(tariff_model, flat_rate_tarrif, time_of_use_tariffs, tiered_tariffs, expected_error):
+def test_calculateTariff_error_cases(
+    tariff_data, tariff_model, flat_rate_tariff, time_of_use_tariffs, tiered_tariffs, monthly_fee, expected_error
+):
     """
-    Test calculateTariff with invalid tariff model values.
-    This test ensures that invalid tariff models raise appropriate errors.
-
+    Test that calculateTariff function raises expected errors for invalid input cases.
+    This test function verifies that the calculateTariff function properly handles
+    error conditions by raising the appropriate exceptions when given invalid
+    parameters or parameter combinations.
     Args:
-        tariff_model: Invalid tariff model to test
-        expected_error: Expected exception type
+        tariff_data: The tariff data to be processed
+        tariff_model: The type of tariff model to apply
+        flat_rate_tariff: Flat rate tariff configuration
+        time_of_use_tariffs: Time-of-use tariff configuration
+        tiered_tariffs: Tiered tariff configuration
+        monthly_fee: Monthly fee amount
+        expected_error: The expected exception type that should be raised
+    Raises:
+        The exception specified in expected_error parameter
+    Note:
+        This test is typically used with pytest.mark.parametrize to test
+        multiple error scenarios with different input combinations.
     """
-
     with pytest.raises(expected_error):
         calculateTariff(
             tariff_data=tariff_data,
             tariff_model=tariff_model,
-            flat_rate_tariff=flat_rate_tarrif,
+            flat_rate_tariff=flat_rate_tariff,
             time_of_use_tariffs=time_of_use_tariffs,
             tiered_tariffs=tiered_tariffs,
-            monthly_fee=MONTHLY_FEE,
+            monthly_fee=monthly_fee,
         )
