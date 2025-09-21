@@ -260,22 +260,22 @@ def test_total_consumption(tariff_data, expected):
 @pytest.mark.parametrize(
     "timestamp, expected, expected_error",
     [
-        # Unit test - valid timestamp string
+        # Unit test - valid timestamp string  # A003
         ("18:00:00", time(18, 00, 00), None),
 
-        # Branch testing - invalid format with decimal seconds
+        # Branch testing - invalid format with decimal seconds  # C001
         ("18:00:1.1", None, ValueError),
 
-        # Branch testing - missing seconds component
+        # Branch testing - missing seconds component  # C002
         ("18:00", None, ValueError),
 
-        # Branch testing - empty string
+        # Branch testing - empty string  # C003
         ("", None, ValueError),
 
-        # Branch testing - non-string input (float)
+        # Branch testing - non-string input (float)  # C004
         (1.1, None, AttributeError),
 
-        # Branch testing - None input
+        # Branch testing - None input  # C005
         (None, None, AttributeError),
     ],
 )
