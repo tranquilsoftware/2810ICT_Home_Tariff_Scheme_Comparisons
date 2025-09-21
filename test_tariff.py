@@ -236,15 +236,15 @@ def test_parseSpreadsheetData(
 @pytest.mark.parametrize(
     "tariff_data, expected", [
         # Unit test - small usage
-        (tariff_data, 1.63),
+        (tariff_data, 1.63),  # A001
 
         # Unit test - large usage
-        (tariff_data_large, 750),
+        (tariff_data_large, 750),  # A002
 
         # Unit test - empty list
-        ([], 0.0),
+        ([], 0.0), # A003
 
-        # Boundary test - No usage
+        # Boundary test - No usage  # B001
         ([
             ElectricalUsageRecord(timestamp="2025-01-01 00:00:00", kwh=0.0),
             ElectricalUsageRecord(timestamp="2025-01-01 00:00:00", kwh=0.0),
