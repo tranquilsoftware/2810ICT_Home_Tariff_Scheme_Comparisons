@@ -338,7 +338,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
 @pytest.mark.parametrize(
     "tariff_data, tariff_tiers, monthly_fee, expected_result",
     [
-        # Unit test - standard tiered tariff calculation with high consumption
+        # Unit test - standard tiered tariff calculation with high consumption  # A007
         (
             tariff_data_large,  # 750 kWh total
             TierTariffThresholds(
@@ -355,7 +355,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=180.0, tier_consumption=450.0)
             ),
         ),
-        # Test coverage - consumption only in tier 1
+        # Test coverage - consumption only in tier 1   # A008
         (
             [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=50.0)],
             TierTariffThresholds(
@@ -372,7 +372,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
             ),
         ),
-        # Test coverage - consumption spanning tier 1 and tier 2 only
+        # Test coverage - consumption spanning tier 1 and tier 2 only  # A009
         (
             [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=200.0)],
             TierTariffThresholds(
@@ -389,7 +389,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
             ),
         ),
-        # Branch testing - zero consumption
+        # Branch testing - zero consumption  # A010
         (
             [],
             TierTariffThresholds(
@@ -406,41 +406,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
             ),
         ),
-        # Branch testing - consumption exactly at tier 1 boundary
-        (
-            [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=100.0)],
-            TierTariffThresholds(
-                tier1=TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.22),
-                tier2=TierThreshold(threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.32),
-                tier3=TierThreshold(threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.42)
-            ),
-            MONTHLY_FEE,
-            TieredTariffResult(
-                total_cost=32.0,  # (100*0.22) + 10.0
-                total_consumption=100.0,
-                tier1=TierResult(tier_cost=22.0, tier_consumption=100.0),
-                tier2=TierResult(tier_cost=0.0, tier_consumption=0.0),
-                tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
-            ),
-        ),
-        # Branch testing - consumption exactly at tier 2 boundary
-        (
-            [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=300.0)],
-            TierTariffThresholds(
-                tier1=TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.20),
-                tier2=TierThreshold(threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.30),
-                tier3=TierThreshold(threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.40)
-            ),
-            MONTHLY_FEE,
-            TieredTariffResult(
-                total_cost=90.0,  # (100*0.20) + (200*0.30) + 10.0
-                total_consumption=300.0,
-                tier1=TierResult(tier_cost=20.0, tier_consumption=100.0),
-                tier2=TierResult(tier_cost=60.0, tier_consumption=200.0),
-                tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
-            ),
-        ),
-        # Branch testing - very high consumption (tier 3 dominant)
+        # Branch testing - very high consumption (tier 3 dominant)  # A011
         (
             [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=1000.0)],
             TierTariffThresholds(
@@ -457,7 +423,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=245.0, tier_consumption=700.0)
             ),
         ),
-        # Branch testing - different monthly fee
+        # Branch testing - different monthly fee  # A012
         (
             [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=150.0)],
             TierTariffThresholds(
@@ -474,7 +440,7 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
             ),
         ),
-        # Branch testing - multiple usage records
+        # Branch testing - multiple usage records  # A013
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 08:00:00", kwh=75.0),
@@ -492,6 +458,40 @@ def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
                 total_consumption=300.0,
                 tier1=TierResult(tier_cost=18.0, tier_consumption=100.0),
                 tier2=TierResult(tier_cost=56.0, tier_consumption=200.0),
+                tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
+            ),
+        ),
+        # Boundary testing - consumption exactly at tier 1 boundary  # B002
+        (
+            [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=100.0)],
+            TierTariffThresholds(
+                tier1=TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.22),
+                tier2=TierThreshold(threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.32),
+                tier3=TierThreshold(threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.42)
+            ),
+            MONTHLY_FEE,
+            TieredTariffResult(
+                total_cost=32.0,  # (100*0.22) + 10.0
+                total_consumption=100.0,
+                tier1=TierResult(tier_cost=22.0, tier_consumption=100.0),
+                tier2=TierResult(tier_cost=0.0, tier_consumption=0.0),
+                tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
+            ),
+        ),
+        # Boundary testing - consumption exactly at tier 2 boundary  # B003
+        (
+            [ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=300.0)],
+            TierTariffThresholds(
+                tier1=TierThreshold(threshold_level=1, low_kwh=0, high_kwh=100, tariff_rate=0.20),
+                tier2=TierThreshold(threshold_level=2, low_kwh=101, high_kwh=300, tariff_rate=0.30),
+                tier3=TierThreshold(threshold_level=3, low_kwh=301, high_kwh=MAX_KWH, tariff_rate=0.40)
+            ),
+            MONTHLY_FEE,
+            TieredTariffResult(
+                total_cost=90.0,  # (100*0.20) + (200*0.30) + 10.0
+                total_consumption=300.0,
+                tier1=TierResult(tier_cost=20.0, tier_consumption=100.0),
+                tier2=TierResult(tier_cost=60.0, tier_consumption=200.0),
                 tier3=TierResult(tier_cost=0.0, tier_consumption=0.0)
             ),
         ),
@@ -624,7 +624,7 @@ def test_tieredTariff(tariff_data, tariff_tiers, monthly_fee, expected_result):
                 shoulder=TimeOfUseResult(tou_cost=0.0, tou_consumption=0.0)
             ),
         ),
-        # Branch testing - edge case at period boundaries
+        # Boundary testing - edge case at period boundaries
         (
             [
                 ElectricalUsageRecord(timestamp="2025-01-01 17:59:59", kwh=1.0),  # Shoulder (just before peak)
