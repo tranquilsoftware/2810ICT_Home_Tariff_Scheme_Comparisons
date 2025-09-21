@@ -303,12 +303,19 @@ def test_get_time_from_str(timestamp, expected, expected_error):
 
 
 @pytest.mark.parametrize(
-    "tariff_data,tariff_rate,monthly_fee, expected",
+    "tariff_data, tariff_rate, monthly_fee, expected",
     [
-        (tariff_data, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=26.3, total_consumption=1.63)),
-        (tariff_data_large, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=7510.0, total_consumption=750.0)),
-        ([], flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=10.0, total_consumption=0.0)),
-        ([ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=50.0)], FlatRateTariff(rate=0.5), 5.0, FlatRateTariffResult(total_cost=30.0, total_consumption=50.0))
+        # Unit test - standard tariff data with default rate
+        (tariff_data, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=26.3, total_consumption=1.63)), # A004
+
+        # Unit test - large consumption data
+        (tariff_data_large, flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=7510.0, total_consumption=750.0)), # A005
+
+        # Branch testing - empty tariff data
+        ([], flat_rate_tariff, MONTHLY_FEE, FlatRateTariffResult(total_cost=10.0, total_consumption=0.0)), # A005
+
+        # Test coverage - custom rate and monthly fee
+        ([ElectricalUsageRecord(timestamp="2025-01-01 12:00:00", kwh=50.0)], FlatRateTariff(rate=0.5), 5.0, FlatRateTariffResult(total_cost=30.0, total_consumption=50.0))  # A006
     ],
 )
 def test_flatRateTariff(tariff_data, tariff_rate, monthly_fee, expected):
