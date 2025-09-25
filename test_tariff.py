@@ -69,17 +69,17 @@ def test_validateDataFormat(
 @pytest.mark.parametrize(
     "setup_case, expected_len, expected_error_snippet, comment",
     [
-        # Unit test - valid CSV file
-        ("valid", 2, None, 'Unit test - valid CSV file with correct format'),
+        # Unit test - valid CSV file (A101)
+        ("valid",       2, None,                        'Unit test - valid CSV file with correct format'),
 
-        # Branch testing - non-existent file
-        ("not_found", 0, "not found", 'Branch testing - non-existent file path'),
+        # Branch testing - non-existent file (A102)
+        ("not_found",   0, "not found",                 'Branch testing - non-existent file path'),
 
-        # Branch testing - empty file
-        ("empty", 0, "CSV file is empty", 'Branch testing - empty CSV file with only header'),
+        # Branch testing - empty file (A103)
+        ("empty",       0, "CSV file is empty",         'Branch testing - empty CSV file with only header'),
 
-        # Branch testing - path is directory
-        ("is_dir", 0, "Error reading CSV file", 'Branch testing - path is a directory instead of file'),
+        # Branch testing - path is directory (A104)
+        ("is_dir",      0, "Error reading CSV file",    'Branch testing - path is a directory instead of file'),
     ]
 )
 def test_readCSVFile(
@@ -99,7 +99,6 @@ def test_readCSVFile(
         test_csv: Fixture providing path to test CSV file
         tmp_path: Fixture providing temporary directory path
     """
-    # {comment}
     if setup_case == "valid":
         file_path = test_csv
 
@@ -127,28 +126,28 @@ def test_readCSVFile(
 @pytest.mark.parametrize(
     "filename, headers, rows, expected_len, expected_msg_snippet, comment",
     [
-        # Test coverage - invalid timestamp & kWh
+        # Test coverage - invalid timestamp & kWh (A111)
         ("invalid_data.csv",
          [SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH],
          [['not-a-datetime', 'not-a-number']],
          0, "Skipping invalid row",
          'Test coverage - invalid timestamp and kWh values'),
 
-        # Branch testing - missing required columns
+        # Branch testing - missing required columns (A112)
         ("missing_columns.csv",
          ['wrong_column', 'another_column'],
          [['2025-01-01 00:00:00', '1.23']],
          0, "Required columns",
          'Branch testing - CSV with missing required columns'),
 
-        # Branch testing - mixed valid/invalid rows
+        # Branch testing - mixed valid/invalid rows (A113)
         ("mixed_data.csv",
          [SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH],
          [['2025-01-01 00:00:00', '0.25'], ['2025-01-01 01:00:00', 'not-a-number']],
          1, "Skipping invalid row",
          'Branch testing - CSV with mix of valid and invalid rows'),
 
-        # Branch testing - missing kWh value
+        # Branch testing - missing kWh value (A114)
         ("missing_value.csv",
          [SPREADSHEET_COL_TIMESTAMP, SPREADSHEET_COL_KWH],
          [['2025-01-01 00:00:00', '']],
