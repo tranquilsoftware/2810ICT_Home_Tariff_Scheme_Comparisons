@@ -29,26 +29,3 @@ if __name__ == "__main__":
 #       -> calculate
 #       -> compare
 #       -> output
-
-
-# PROPOSED FUNCTIONS
-# compareTariffs(TariffData t1, TariffData t2)
-# calculateTariff(TariffData t)
-# validateDataFormat(TariffDataCell tdc) -- This is used in both functions above.
-# parseSpreadsheetData(Spreadsheet spreadsheetFile)
-
-# MARKING RUBRIC
-# Implements four Python functions meeting all requirements:
-#  - at least one with parameters, one returning a value, and one using an if–else structure.
-#  - Functions are correct, clear, and well-structured. Each function contains at least 10 lines of code (excluding comments).
-
-# UNIT TESTING,
-# Provides unit tests for all the four implemented functions, with both positive and negative test cases.
-# Tests thoroughly validate function behavior and edge cases. Achieves a 100% pass rate.
-# Test code is clear, systematic, and well-structured.
-
-
-# COVERAGE TESTING, BRANCH COVERAGE TESTING.
-
-# Provides comprehensive tests achieving 100% statement coverage and 100% branch coverage.
-# Test cases are clear, systematic, and well-documented. Results are verified with coverage reports.
