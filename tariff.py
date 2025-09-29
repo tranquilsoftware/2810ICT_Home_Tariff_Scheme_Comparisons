@@ -148,6 +148,7 @@ def readCSVFile(file_path: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
     if not os.path.exists(file_path):
         return [], f"Error: File '{file_path}' not found"
 
+
     # NOTE: File exists, continue..
 
     # Try case as an error could definitely occur during a file read operation
