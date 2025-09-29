@@ -810,7 +810,7 @@ def test_timeOfUseTariff(test_data, tariff_categories, monthly_fee, expected_res
         ),
     ]
 )
-def test_calculateTariff_success_cases(
+def test_calculateTariff_success_cases(gi
     tariff_model, tariff_data, flat_rate_tariff, time_of_use_tariffs, tiered_tariffs,
     monthly_fee, expected_type, expected_cost, expected_consumption
 ):

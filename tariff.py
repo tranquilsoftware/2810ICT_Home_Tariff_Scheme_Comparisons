@@ -6,9 +6,10 @@ from datetime import (
     datetime,
     time,
     timedelta,
-)  # Used for electrical usage record, specifically the timestamp attribute.
+)
+
+# Used for electrical usage record, specifically the timestamp attribute.
 from const import (
-    SPREADSHEET_FILE,
     SPREADSHEET_COL_TIMESTAMP,
     SPREADSHEET_COL_KWH,
     MONTHLY_FEE,
@@ -296,7 +297,32 @@ def calculateTariff(
     monthly_fee: float = MONTHLY_FEE,
 ) -> FlatRateTariffResult | TieredTariffResult | TimeOfUseTariffResult:
     """
-    Calculate the cost of electricity based on the tariff model.
+    Calculate electricity tariff costs based on the specified tariff model.
+    This function processes electrical usage data and calculates the total cost
+    according to one of three tariff models: flat rate, time of use, or tiered pricing.
+    Args:
+        tariff_data (List[ElectricalUsageRecord]): List of electrical usage records
+            containing consumption data to be processed.
+        tariff_model (TariffModel): The tariff model to use for calculations
+            (FLAT_RATE, TIME_OF_USE, or TIERED).
+        flat_rate_tariff (Optional[FlatRateTariff], optional): Flat rate tariff
+            configuration. Required when tariff_model is FLAT_RATE.
+        time_of_use_tariffs (Optional[TimeOfUseTariffCategories], optional):
+            Time-of-use tariff categories and rates. Required when tariff_model
+            is TIME_OF_USE.
+        tiered_tariffs (Optional[TierTariffThresholds], optional): Tiered tariff
+            thresholds and rates. Required when tariff_model is TIERED.
+        monthly_fee (float, optional): Monthly service fee to add to the total cost.
+            Defaults to MONTHLY_FEE.
+    Returns:
+        FlatRateTariffResult | TieredTariffResult | TimeOfUseTariffResult:
+            Tariff calculation result object containing cost breakdown and total
+            amount based on the selected tariff model.
+    Raises:
+        AttributeError: If the required tariff configuration for the specified
+            model is not provided (e.g., flat_rate_tariff is None when using
+            FLAT_RATE model).
+        ValueError: If an unknown or unsupported tariff model is specified.
     """
     result = None
 
@@ -333,14 +359,26 @@ def calculateTariff(
 
 def _total_consumption(tariff_data: List[ElectricalUsageRecord]) -> float:
     """
-    Calculate the sum of kWh consumed for all tariff_data
+    Calculate the total electricity consumption from a list of usage records.
+    Args:
+        tariff_data (List[ElectricalUsageRecord]): A list of electrical usage records
+            containing consumption data in kilowatt-hours.
+    Returns:
+        float: The total consumption in kilowatt-hours (kWh) across all records.
     """
     return sum(record.kwh for record in tariff_data)
 
 
 def _get_time_from_str(time_str: str) -> time:
     """
-    Create a datetime.time object from a string. String must be in the %H:%M:%S format.
+    Convert a time string in HH:MM:SS format to a time object.
+    Args:
+        time_str (str): Time string in format "HH:MM:SS" (e.g., "14:30:45")
+    Returns:
+        time: A time object representing the parsed time
+    Raises:
+        ValueError: If the time string format is invalid or contains non-numeric values
+        AttributeError: If the input is None or doesn't have a split method
     """
     try:
         h, m, s = time_str.split(":")
@@ -356,10 +394,21 @@ def _flatRateTariff(
     monthly_fee: float = MONTHLY_FEE,
 ) -> FlatRateTariffResult:
     """
-    Calculate a flat rate tariff.
-
-    EG:
-        Total bill = (300 x 0.25) + 10 = $85
+    Calculate the total cost for a flat rate electricity tariff.
+    This function computes the total electricity cost based on a flat rate pricing
+    structure where all consumed units are charged at the same rate regardless of
+    usage amount or time of consumption.
+    Args:
+        tariff_data (List[ElectricalUsageRecord]): A list of electrical usage records
+            containing consumption data to be processed.
+        tariff_rate (FlatRateTariff): The flat rate tariff structure containing the
+            per-unit rate for electricity consumption.
+        monthly_fee (float, optional): The fixed monthly service fee to be added to
+            the usage cost. Defaults to MONTHLY_FEE.
+    Returns:
+        FlatRateTariffResult: A result object containing the total cost (usage cost
+            plus monthly fee) and total consumption amount, with costs rounded to
+            2 decimal places.
     """
     total_consumption = _total_consumption(tariff_data)
     usage_cost = round(total_consumption * tariff_rate.rate, 2)
@@ -376,7 +425,28 @@ def _timeOfUseTariff(
     monthly_fee: float = MONTHLY_FEE,
 ) -> TimeOfUseTariffResult:
     """
-    Calculate the tariff cost based on time of use data.
+    Calculate time-of-use tariff costs based on electrical usage records and tariff categories.
+    This function analyzes electrical usage data and categorizes consumption into peak, off-peak,
+    and shoulder periods based on the provided tariff categories. It calculates the cost for each
+    period and returns a comprehensive result including total costs and consumption breakdown.
+    Args:
+        tariff_data (List[ElectricalUsageRecord]): List of electrical usage records containing
+            timestamp and kWh consumption data.
+        tariff_categories (TimeOfUseTariffCategories): Object containing tariff rates and time
+            periods for peak, off-peak, and shoulder categories.
+        monthly_fee (float, optional): Fixed monthly fee to add to the total cost.
+            Defaults to MONTHLY_FEE.
+    Returns:
+        TimeOfUseTariffResult: Object containing:
+            - total_cost: Combined cost of all consumption periods plus monthly fee
+            - total_consumption: Total kWh consumed across all periods
+            - peak: Peak period consumption and cost details
+            - off_peak: Off-peak period consumption and cost details
+            - shoulder: Shoulder period consumption and cost details
+    Note:
+        - Off-peak periods can span across midnight (split into two timeframes per day)
+        - All consumption not falling into peak or off-peak periods is classified as shoulder
+        - Costs are rounded to 2 decimal places
     """
     total_consumption = _total_consumption(tariff_data)
 
